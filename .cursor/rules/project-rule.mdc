@@ -1,0 +1,630 @@
+---
+alwaysApply: true
+---
+# Project Stack
+
+* Node.js
+* Express.js
+* TypeScript
+* PostgreSQL
+* Prisma ORM
+* Zod
+
+---
+
+# Architecture First
+
+Always prioritize scalable and maintainable architecture.
+
+* Follow SOLID principles.
+* Follow Clean Code principles.
+* Follow Separation of Concerns (SoC).
+* Follow DRY (Don't Repeat Yourself).
+* Follow KISS (Keep It Simple, Stupid).
+* Keep business logic independent from HTTP layers.
+* Prefer composition over inheritance.
+* Design code for maintainability and scalability.
+
+---
+
+# Modular Project Structure
+
+Organize the project using a clear and scalable architecture.
+
+```text
+src/
+├── controllers/
+├── services/
+├── repositories/
+├── middlewares/
+├── schemas/
+├── routes/
+├── utils/
+├── types/
+├── config/
+├── errors/
+├── validators/
+├── database/
+└── prisma/
+```
+
+Responsibilities:
+
+* Controllers → HTTP layer only.
+* Services → Business rules.
+* Repositories → Database access.
+* Schemas → Zod validations.
+* Middlewares → Authentication, authorization and request handling.
+* Utils → Shared helper functions.
+* Types → Shared TypeScript types.
+* Config → Environment and application configuration.
+
+---
+
+# Controller Rules
+
+Controllers must:
+
+* Receive Request and Response objects.
+* Validate request data through Zod schemas.
+* Call Services.
+* Return HTTP responses.
+
+Controllers must NOT:
+
+* Contain business logic.
+* Query the database directly.
+* Perform data transformations.
+
+Example:
+
+```ts
+export async function createCustomer(
+ req: Request,
+ res: Response
+) {
+ const result = await createCustomerService.execute(req.body);
+
+ return res.status(201).json(result);
+}
+```
+
+---
+
+# Service Layer Rules
+
+All business rules must live inside Services.
+
+Services are responsible for:
+
+* Business validations.
+* Data processing.
+* Calling repositories.
+* Handling business exceptions.
+* Returning domain results.
+
+Services must NOT:
+
+* Access Request or Response objects.
+* Return HTTP responses.
+* Depend on Express.
+
+---
+
+# Repository Pattern
+
+All database operations must be isolated in repositories.
+
+Repositories must:
+
+* Contain Prisma queries.
+* Abstract database implementation details.
+* Return typed results.
+
+Never place Prisma queries inside Controllers.
+
+---
+
+# Prisma ORM Best Practices
+
+Always optimize database queries.
+
+Use:
+
+```ts
+select
+```
+
+instead of fetching unnecessary fields.
+
+Example:
+
+```ts
+const customer = await prisma.customer.findUnique({
+ where: { id },
+ select: {
+  id: true,
+  name: true
+ }
+});
+```
+
+Avoid:
+
+```ts
+const customer = await prisma.customer.findUnique({
+ where: { id }
+});
+```
+
+Additional Rules:
+
+* Avoid N+1 queries.
+* Use transactions when multiple operations depend on each other.
+* Create indexes for frequently queried columns.
+* Use pagination for large datasets.
+* Avoid unnecessary includes.
+
+---
+
+# TypeScript First
+
+TypeScript is mandatory.
+
+Always:
+
+* Enable strict mode.
+* Type all function parameters.
+* Type all return values.
+* Type API responses.
+* Type Prisma payloads.
+* Type DTOs.
+
+Never:
+
+* Use any.
+* Use implicit types.
+* Ignore TypeScript errors.
+
+Good Example:
+
+```ts
+async function findCustomerById(
+ id: string
+): Promise<Customer | null> {
+ return repository.findById(id);
+}
+```
+
+Bad Example:
+
+```ts
+async function findCustomerById(id: any) {
+ return repository.findById(id);
+}
+```
+
+---
+
+# Naming Conventions
+
+## Files
+
+Use:
+
+```text
+customer.service.ts
+customer.repository.ts
+customer.controller.ts
+customer.schema.ts
+auth.middleware.ts
+```
+
+## Variables
+
+Use camelCase:
+
+```ts
+const customerName = "";
+const orderStatus = "";
+```
+
+## Functions
+
+Use camelCase:
+
+```ts
+createCustomer()
+updateOrder()
+```
+
+## Classes
+
+Use PascalCase:
+
+```ts
+CustomerService
+OrderRepository
+```
+
+## Interfaces
+
+Prefix with I:
+
+```ts
+interface ICustomer
+interface IOrder
+```
+
+## Types
+
+Use descriptive names:
+
+```ts
+type CustomerResponse
+type OrderDTO
+```
+
+---
+
+# Validation Rules
+
+Use Zod for all external inputs.
+
+Never trust client-side data.
+
+Example:
+
+```ts
+const createCustomerSchema = z.object({
+ name: z.string().min(3),
+ email: z.email()
+});
+```
+
+Validate:
+
+* Request body.
+* Query params.
+* Route params.
+* Environment variables.
+
+Never perform manual validation when Zod can handle it.
+
+---
+
+# Error Handling
+
+Use centralized error handling.
+
+Create a custom AppError class.
+
+Example:
+
+```ts
+export class AppError extends Error {
+ constructor(
+  message: string,
+  public statusCode = 400
+ ) {
+  super(message);
+ }
+}
+```
+
+Always:
+
+* Throw business exceptions.
+* Handle unexpected errors.
+* Return standardized responses.
+
+Never:
+
+* Leak internal errors.
+* Return Prisma errors directly.
+
+---
+
+# Global Error Middleware
+
+Implement a centralized error middleware.
+
+Example:
+
+```ts
+app.use(errorMiddleware);
+```
+
+Avoid repetitive try/catch blocks when middleware can handle the error.
+
+---
+
+# Security Best Practices
+
+Always:
+
+* Hash passwords using bcrypt.
+* Use environment variables.
+* Configure CORS correctly.
+* Validate all inputs.
+* Sanitize all inputs.
+* Implement rate limiting.
+* Use Helmet.
+* Use secure HTTP headers.
+
+Recommended packages:
+
+```bash
+helmet
+cors
+bcrypt
+express-rate-limit
+```
+
+Never:
+
+* Store plain text passwords.
+* Expose secrets.
+* Log sensitive information.
+* Trust client data.
+
+---
+
+# Authentication & Authorization
+
+Use JWT Authentication.
+
+Implement:
+
+* Access Tokens.
+* Refresh Tokens.
+* Role-Based Access Control (RBAC).
+
+Example Roles:
+
+```ts
+ADMIN
+EMPLOYEE
+CUSTOMER
+```
+
+Protect all private routes using middleware.
+
+---
+
+# Logging
+
+Use structured logging.
+
+Recommended:
+
+```bash
+pino
+```
+
+Log:
+
+* Errors.
+* Requests.
+* Critical operations.
+
+Never log:
+
+* Passwords.
+* Tokens.
+* Sensitive customer data.
+
+---
+
+# API Standards
+
+## HTTP Methods
+
+GET → Retrieve
+
+POST → Create
+
+PUT → Replace
+
+PATCH → Partial Update
+
+DELETE → Remove
+
+## Status Codes
+
+200 → OK
+
+201 → Created
+
+204 → No Content
+
+400 → Bad Request
+
+401 → Unauthorized
+
+403 → Forbidden
+
+404 → Not Found
+
+409 → Conflict
+
+500 → Internal Server Error
+
+---
+
+# Performance Optimization
+
+Always:
+
+* Optimize Prisma queries.
+* Use pagination.
+* Avoid duplicate database calls.
+* Avoid unnecessary loops.
+* Reuse shared logic.
+* Cache expensive operations when appropriate.
+
+Example Pagination:
+
+```ts
+const customers = await prisma.customer.findMany({
+ skip: 0,
+ take: 20
+});
+```
+
+---
+
+# Testing Strategy
+
+Use:
+
+* Vitest or Jest.
+* Supertest.
+* Testing Library when applicable.
+
+Coverage Requirements:
+
+* Services.
+* Repositories.
+* Critical routes.
+* Business rules.
+
+Never merge critical features without tests.
+
+---
+
+# Code Quality Tools
+
+Mandatory:
+
+```bash
+eslint
+prettier
+husky
+lint-staged
+```
+
+Always format code before committing.
+
+---
+
+# Git Standards
+
+Use Conventional Commits:
+
+```text
+feat:
+fix:
+refactor:
+test:
+docs:
+chore:
+perf:
+```
+
+Examples:
+
+```bash
+feat: create customer endpoint
+fix: resolve order status bug
+refactor: extract repository logic
+```
+
+---
+
+# Environment Variables
+
+Store configuration in:
+
+```bash
+.env
+```
+
+Validate environment variables with Zod at application startup.
+
+Never hardcode:
+
+* Database URLs.
+* Secrets.
+* API Keys.
+* Tokens.
+
+---
+
+# Database Best Practices
+
+Always:
+
+* Create migrations.
+* Create seed files.
+* Use transactions when required.
+* Create indexes where needed.
+
+Consider Soft Delete for important business entities.
+
+---
+
+# Code Review Checklist
+
+Before generating or approving code, verify:
+
+* No duplicated code.
+* Complete TypeScript typing.
+* Proper error handling.
+* Proper Zod validation.
+* Correct architecture separation.
+* Optimized Prisma queries.
+* Security best practices applied.
+* No dead code.
+* No unnecessary complexity.
+* Clean and readable code.
+* Proper formatting.
+
+---
+
+# Forbidden Practices
+
+Never:
+
+❌ Use any
+
+❌ Place business logic inside controllers
+
+❌ Query Prisma directly inside controllers
+
+❌ Duplicate code
+
+❌ Store passwords without hashing
+
+❌ Skip validation
+
+❌ Expose internal errors
+
+❌ Log sensitive data
+
+❌ Create massive functions
+
+❌ Create monolithic files
+
+❌ Ignore TypeScript errors
+
+❌ Use console.log in production
+
+❌ Return untyped data
+
+---
+
+# AI Response Rules
+
+When providing solutions:
+
+1. Analyze the problem carefully.
+2. Explain the solution before writing code.
+3. Follow Clean Architecture principles.
+4. Follow TypeScript best practices.
+5. Include error handling.
+6. Include validation when necessary.
+7. Review code before responding.
+8. Suggest possible improvements.
+9. Optimize performance when applicable.
+10. Prefer maintainable solutions over quick fixes.

@@ -1,0 +1,91 @@
+
+
+// Para criar uma migrate nova > npx prisma migrate dev 
+// Depois rode o comando " npx prisma generate ", isso vai fazer ele gerar a pasta generate que esta indicando no " output "
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STAFF
+  ADMIN
+}
+
+
+model User{
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  role Role @default(STAFF)
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Category {
+  id String @id @default(uuid())
+  name String
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+  product Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id String @id @default(uuid())
+  name String
+  price Int // " Int server para poder trabalhar com centavamos"
+  description String
+  banner String
+  disabled Boolean @default(false)
+
+  category_id String
+  category Category @relation(fields:[category_id], references:[id], onDelete: Cascade)
+
+  item Item[]
+
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+   @@map("products")
+}
+
+model Order {
+  id String @id @default(uuid())
+  table Int 
+  status Boolean @default(false) // FALSE = Pedente, TRUE = PRONTO
+  draft Boolean @default(true) // Quando o Draft for FALSE e o status FALSE, significa que o pedido foi enviado para a cozinha, e esta sendo feito.
+  name String?
+  
+  items Item[]
+  
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  @@map("orders")
+}
+
+model Item {
+  id String @id @default(uuid())
+  amount Int
+  createAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+
+  order_id String
+  order Order @relation(fields:[order_id], references:[id], onDelete: Cascade)
+
+  product_id String
+  product Product @relation(fields:[product_id], references:[id], onDelete: Cascade)
+
+@@map("items")
+}

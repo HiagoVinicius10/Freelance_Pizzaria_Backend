@@ -1,0 +1,141 @@
+---
+description: Project stack, dependency versions, and backend best practices
+globs: **/*
+alwaysApply: true
+---
+
+# Project Stack — Pizzaria Backend
+
+REST API built with **Node.js + TypeScript + Express 5**, run in development via **tsx** (no pre-compilation step required for dev).
+
+## Runtime and tooling
+
+| Tool | Version | Notes |
+|---|---|---|
+| Node.js | **22.x** (local: 22.14.0) | Express 5 requires `>= 18` |
+| npm | **10.x** (local: 10.9.2) | lockfile v3 |
+| TypeScript (runtime) | via **tsx 4.22.4** | Transpiles with esbuild; **does not type-check** |
+| TypeScript (compiler) | **typescript** (devDependency) | Use `npm run typecheck` for static analysis |
+
+## Direct dependencies (resolved versions)
+
+| Package | Version | Type | Purpose |
+|---|---|---|---|
+| `express` | **5.2.1** | prod | HTTP framework |
+| `cors` | **2.8.6** | prod | CORS middleware |
+| `dotenv` | **17.4.2** | prod | Environment variables |
+| `tsx` | **4.22.4** | prod | Dev server + TS execution |
+| `@types/express` | **5.0.6** | dev | Express 5 types |
+| `@types/cors` | **2.8.19** | dev | CORS types |
+| `@types/node` | **26.0.0** | dev | Node.js types |
+| `typescript` | **5.9.3** | dev | Type-checking and production builds |
+
+### Relevant transitive dependencies (Express 5)
+
+- `body-parser` **2.x**, `router` **2.x**, `send` **1.x**, `serve-static` **2.x**
+- `esbuild` **0.28.1** (via tsx)
+
+## TypeScript configuration (`tsconfig.json`)
+
+- **target/lib:** ES2020 · **module:** CommonJS · **moduleResolution:** node
+- **strict:** true + `noUnusedLocals`, `noUnusedParameters`, `noUncheckedIndexedAccess`, `noImplicitOverride`
+- **rootDir:** `./src` · **outDir:** `./dist` · **types:** `["node"]`
+- **isolatedModules:** true (compatible with tsx/esbuild)
+
+## Scripts
+
+```bash
+npm run dev        # tsx watch src/server.ts
+npm run typecheck  # tsc --noEmit
+```
+
+## Existing code patterns
+
+```typescript
+// Load env early (side-effect import)
+import "dotenv/config";
+
+import cors from "cors";
+import express, { NextFunction, Request, Response } from "express";
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+const PORT = process.env.PORT ?? 3333;
+```
+
+- Entry point: `src/server.ts`
+- Source in `src/`, compiled output in `dist/` (when using `tsc`)
+- `.env` at project root; **never commit** secrets
+
+---
+
+## Best practices by technology
+
+### Express 5.x (do not use Express 4 patterns)
+
+Reference: [Migrating to Express 5](https://expressjs.com/en/guide/migrating-5)
+
+- Use `app.delete()`, not `app.del()`
+- Use `res.status(code).send()` / `.json()` — **not** `res.send(status, body)` or `res.json(status, obj)`
+- Use `res.sendFile()` — **not** `res.sendfile()`
+- **Do not** use `req.param()` (removed); prefer `req.params`, `req.body`, `req.query`
+- **Do not** use `app.router` (removed)
+- Wildcard routes (`*`, `?`) changed; avoid regex in paths when possible
+- Async handlers: rejected Promises are forwarded to error middleware (improved vs v4)
+- Prefer `Router()` to modularize routes into separate files
+
+```typescript
+// ✅ Express 5
+app.get("/health", (_req: Request, res: Response) => {
+  res.status(200).json({ ok: true });
+});
+
+// ❌ Express 4 (broken in v5)
+app.get("/health", (_req, res) => {
+  res.json(200, { ok: true });
+});
+```
+
+### tsx 4.x
+
+- **Dev:** `tsx watch` reloads on save — current project default
+- **Production:** use `tsx src/server.ts` or compile with `tsc` + `node dist/server.js`
+- tsx **transpiles only**; run `npm run typecheck` (`tsc --noEmit`) for type validation
+- Respect `isolatedModules`: avoid `const enum`, namespaces, and ambiguous re-exports
+
+### dotenv 17.x
+
+- Import **at the top** of the entry point: `import "dotenv/config"`
+- Silence injection log: `DOTENV_CONFIG_QUIET=true` in `.env` or environment
+- `DOTENV_CONFIG_*` variables take precedence over in-code options
+- Validate required variables after load (e.g. `PORT`, DB credentials)
+
+### cors 2.x
+
+- Default config (`cors()`) allows any origin — **fine for dev**
+- In production, restrict origin:
+
+```typescript
+app.use(cors({ origin: process.env.FRONTEND_URL }));
+```
+
+### @types/node 26.x
+
+- Aligned with recent Node 22+ APIs
+- Prefer native APIs (`node:fs`, `node:path`) over polyfills
+
+---
+
+## Known gaps
+
+1. No `build`/`start` scripts yet — add when deploying to production.
+2. No test framework — when adding one, prefer **Vitest** or **Node test runner** (compatible with tsx/ESM).
+
+## When adding new dependencies
+
+- Keep `@types/*` aligned with the package major version (e.g. Express 5 → `@types/express` 5.x)
+- Express 5 already includes JSON parsing — avoid duplicating unnecessary middleware
+- Prefer packages with Node >= 18 support
+- Update this rule when the stack changes (new DB, ORM, validation, etc.)
